@@ -12,8 +12,8 @@ from assignment1.classifiers import KNearestNeighbor
 import scipy.io as scio
 import os
 
-# cifar10_dir = '../datasets/cifar-10-batches-py'
-# X_train, y_train, X_test, y_test = load_CIFAR10(cifar10_dir)
+cifar10_dir = '../datasets/cifar-10-batches-py'
+X_train, y_train, X_test, y_test = load_CIFAR10(cifar10_dir)
 
 
 # As a sanity check, we print out the size of the training and test data.
@@ -73,17 +73,57 @@ def cal_dists(X_train, y_train, X_test, y_test):
     print('Got %d / %d correct => accuracy: %f' % (num_correct, 500, accuracy))
 
 
+def cross_validation(X_train, y_train, X_test, y_test):
+    X_train, y_train, X_test, y_test = preprocessing(X_train, y_train, X_test, y_test)
+    classifier = KNearestNeighbor()
+    classifier.train(X_train, y_train)
+
+    num_folds = 5
+    k_choices = [1, 3, 5, 8, 10, 12, 15, 20, 50, 100]
+
+    X_train_folds = np.array_split(X_train, num_folds)
+    y_train_folds = np.array_split(y_train, num_folds)
+
+    k_to_accuracies = {}
+    for k in k_choices:  # find the best k-value
+        k_to_accuracies[k] = []
+        for i in range(num_folds):
+            X_train_cv = np.concatenate(X_train_folds[:i] + X_train_folds[i + 1:])
+            X_test_cv = X_train_folds[i]
+
+            y_train_cv = np.concatenate(y_train_folds[:i] + y_train_folds[i + 1:])  # size:4000
+            y_test_cv = y_train_folds[i]
+
+            classifier.train(X_train_cv, y_train_cv)
+            dists_cv = classifier.compute_distances_no_loops(X_test_cv)
+
+            y_test_pred = classifier.predict_labels(dists_cv, k)
+            num_correct = np.sum(y_test_pred == y_test_cv)
+            accuracy = float(num_correct) / y_test_cv.shape[0]
+
+            k_to_accuracies[k].append(accuracy)
+    for k in sorted(k_to_accuracies):
+        for accuracy in k_to_accuracies[k]:
+            print('k = %d, accuracy = %f' % (k, accuracy))
+
+    for k in k_choices:
+        accuracies = k_to_accuracies[k]
+        plt.scatter([k] * len(accuracies), accuracies)
+
+    # plot the trend line with error bars that correspond to standard deviation
+    accuracies_mean = np.array([np.mean(v) for k, v in sorted(k_to_accuracies.items())])
+    accuracies_std = np.array([np.std(v) for k, v in sorted(k_to_accuracies.items())])
+    plt.errorbar(k_choices, accuracies_mean, yerr=accuracies_std)
+    plt.title('Cross-validation on k')
+    plt.xlabel('k')
+    plt.ylabel('Cross-validation accuracy')
+    plt.show()
+
+
 if __name__ == '__main__':
     # visualize_examples()
     # cal_dists(X_train, y_train, X_test, y_test)
     # plt.imshow(dists, interpolation='none')
     # plt.savefig('../res/dists.jpg')
 
-    dists = scio.loadmat('../res/dists')['data']
-    dists_one = scio.loadmat('../res/dists_one')['data']
-    difference = np.linalg.norm(dists - dists_one, ord='fro')
-    print('Difference was: %f' % (difference,))
-    if difference < 0.001:
-        print('Good! The distance matrices are the same')
-    else:
-        print('Uh-oh! The distance matrices are different')
+    cross_validation(X_train, y_train, X_test, y_test)
