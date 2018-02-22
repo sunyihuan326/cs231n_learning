@@ -95,4 +95,13 @@ def trick_6():
     print(y_train_cv)
 
 
-trick_6()
+def trick_7():
+    '''
+    乱序
+    '''
+    x = [1, 2, 3, 4]
+    y = np.random.permutation(x)
+    print(y)
+
+
+trick_7()
