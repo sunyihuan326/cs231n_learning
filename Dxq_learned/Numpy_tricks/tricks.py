@@ -99,7 +99,6 @@ def trick_7():
     '''
     乱序
     '''
-
     x = [1, 2, 3, 4]
     y = np.random.permutation(x)
     print(y)
